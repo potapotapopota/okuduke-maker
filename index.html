@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>奥付メーカー</title>
+<meta name="description" content="同人誌の奥付を、入力するだけで透明背景のPNG画像にできるツールです。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --text: #23221f; --muted: #6b6963; --line: #e2dfd7;
+    --accent: #2f5d8a; --accent-bg: #e8f0f8; --danger: #a33a3a; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1c1c1a; --card: #262624; --text: #ecebe6; --muted: #a8a69f; --line: #3a3936; --accent: #8fb8e0; --accent-bg: #23303d; --danger: #e08a8a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Noto Sans JP", system-ui, sans-serif; font-size: 15px; line-height: 1.6; }
+  header { max-width: 1100px; margin: 0 auto; padding: 28px 20px 8px; }
+  header h1 { font-size: 24px; margin: 0 0 4px; font-weight: 700; letter-spacing: .02em; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px 20px 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  @media (min-width: 900px) { main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } .preview-col { position: sticky; top: 16px; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 18px 14px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin: 0 0 12px; font-weight: 700; }
+  .card h2 small { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 6px; }
+  label.field { display: block; margin-bottom: 10px; }
+  label.field span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 3px; }
+  input[type=text], textarea, select { width: 100%; font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); }
+  textarea { resize: vertical; min-height: 60px; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: grid; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .row.kv { grid-template-columns: 110px minmax(0, 1fr) 34px; }
+  .row.ed { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr) minmax(0, 1.1fr) 34px; }
+  .row.ed.first { grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr) 34px; }
+  @media (max-width: 520px) {
+    .row-head.ed { display: none; }
+    .row.ed, .row.ed.first { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 34px; padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
+    .row.ed .ed-note { grid-column: 1 / 3; grid-row: 2; }
+    .row.ed .icon-btn { grid-column: 3; grid-row: 1; }
+    .row.kv { grid-template-columns: 84px minmax(0, 1fr) 34px; }
+  }
+  .row-head { display: grid; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; }
+  .icon-btn { width: 34px; height: 36px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 18px; line-height: 1; }
+  .icon-btn:hover { color: var(--danger); border-color: var(--danger); }
+  .add-btn { border: 1px dashed var(--line); background: transparent; color: var(--accent); padding: 6px 12px; font-size: 14px; }
+  .add-btn:hover { border-color: var(--accent); }
+  .check { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; font-size: 14px; }
+  .check input { margin-top: 5px; flex: none; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
+  .seg input:checked + label { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+  .seg input:focus-visible + label { outline: 2px solid var(--accent); }
+  .opt-title { font-size: 13px; color: var(--muted); margin: 4px 0 6px; }
+  .inline { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 14px; }
+  .inline input[type=number] { width: 80px; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); }
+  .stage { border-radius: 8px; border: 1px solid var(--line); padding: 16px; display: flex; justify-content: center;
+    background-color: #fff; background-image: linear-gradient(45deg, #ececec 25%, transparent 25%), linear-gradient(-45deg, #ececec 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ececec 75%), linear-gradient(-45deg, transparent 75%, #ececec 75%);
+    background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; }
+  .stage.dark { background-color: #333; background-image: linear-gradient(45deg, #3d3d3d 25%, transparent 25%), linear-gradient(-45deg, #3d3d3d 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #3d3d3d 75%), linear-gradient(-45deg, transparent 75%, #3d3d3d 75%); }
+  #preview { width: 100%; height: auto; display: block; }
+  .meta { font-size: 12px; color: var(--muted); margin: 8px 0 12px; }
+  .primary { background: var(--accent); color: #fff; border: none; padding: 10px 18px; font-size: 15px; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .primary { color: #1c1c1a; } }
+  .primary:disabled { opacity: .6; cursor: wait; }
+  .ghost { background: transparent; border: 1px solid var(--line); color: var(--text); padding: 9px 14px; font-size: 14px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #result { margin-top: 14px; display: none; }
+  #result img { max-width: 100%; border: 1px solid var(--line); border-radius: 6px; display: block; margin-top: 6px;
+    background-image: linear-gradient(45deg, #ececec 25%, transparent 25%), linear-gradient(-45deg, #ececec 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ececec 75%), linear-gradient(-45deg, transparent 75%, #ececec 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-color: #fff; }
+  #result p { font-size: 13px; color: var(--muted); margin: 0; }
+  footer { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; color: var(--muted); font-size: 13px; }
+  footer a { color: var(--accent); }
+  .support { display: none; margin-bottom: 8px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<header>
+  <h1>奥付メーカー</h1>
+  <p>項目を入力すると、同人誌の奥付を透明背景のPNG画像にできます。CLIP STUDIO・Photoshopなど、どのソフトにも貼るだけで使えます。</p>
+</header>
+
+<main>
+  <div class="form-col">
+    <section class="card">
+      <h2>本の情報</h2>
+      <label class="field"><span>タイトル</span><input type="text" id="title" placeholder="本のタイトル"></label>
+      <div class="field" id="subtitleWrap">
+        <label for="subtitle" style="display:block;font-size:13px;color:var(--muted);margin-bottom:3px;">サブタイトル</label>
+        <div style="display:flex;gap:6px;"><input type="text" id="subtitle"><button type="button" class="icon-btn" id="subtitleRemove" aria-label="サブタイトルを削除">×</button></div>
+      </div>
+      <button type="button" class="add-btn" id="subtitleAdd">＋ サブタイトルを追加</button>
+    </section>
+
+    <section class="card">
+      <h2>発行日<small>再版したら行を追加</small></h2>
+      <p style="font-size:12px;color:var(--muted);margin:-6px 0 8px;">発行日／イベント名（任意）。2行目からは「第2版発行」などの版も入れられます。</p>
+      <div id="editions"></div>
+      <button type="button" class="add-btn" data-add="editions">＋ 版を追加</button>
+    </section>
+
+    <section class="card">
+      <h2>発行・印刷<small>項目名も書き換えられます</small></h2>
+      <div id="info"></div>
+      <button type="button" class="add-btn" data-add="info">＋ 項目を追加</button>
+    </section>
+
+    <section class="card">
+      <h2>連絡先</h2>
+      <div id="contacts"></div>
+      <button type="button" class="add-btn" data-add="contacts">＋ 連絡先を追加</button>
+    </section>
+
+    <section class="card">
+      <h2>注意書き</h2>
+      <div class="opt-title">よく使う注意書き</div>
+      <div id="notices"></div>
+      <div class="opt-title" style="margin-top:12px;">成人向けの本のとき</div>
+      <label class="check"><input type="checkbox" id="adult"><span><b>成人向けの本</b>（オンにすると、次の2文がまとめて入ります）<br><small style="color:var(--muted);">本誌は成人向け（R18）作品です。18歳未満の方の閲覧・購入はお断りします。<br>This book contains adult content. Not for readers under 18.</small></span></label>
+      <label class="field"><span>自由に追加（改行で行を分けられます）</span><textarea id="customNotice" rows="2"></textarea></label>
+    </section>
+
+    <section class="card">
+      <h2>デザイン</h2>
+      <div class="opt-title">罫線</div>
+      <div class="seg" id="seg-style"></div>
+      <div class="opt-title">フォント</div>
+      <div class="seg" id="seg-font"></div>
+      <div class="opt-title">文字の大きさ</div>
+      <div class="seg" id="seg-size"></div>
+      <div class="opt-title">揃え</div>
+      <div class="seg" id="seg-align"></div>
+      <div class="opt-title">文字の色</div>
+      <div class="seg" id="seg-color"></div>
+      <div class="inline" id="customColorWrap"><label for="customColor">「そのほか」の色</label><input type="color" id="customColor" value="#2f5d8a"></div>
+      <div class="opt-title">本のサイズ</div>
+      <div class="seg" id="seg-book"></div>
+      <div class="inline" id="widthWrap"><label for="width">奥付の幅</label><input type="number" id="width" min="30" max="300" step="1"> mm</div>
+      <div class="meta" id="widthHint" style="margin-top:-6px;"></div>
+    </section>
+  </div>
+
+  <div class="preview-col">
+    <section class="card">
+      <h2>プレビュー</h2>
+      <div class="stage" id="stage"><canvas id="preview" aria-label="奥付のプレビュー"></canvas></div>
+      <div class="meta" id="meta"></div>
+      <div class="opt-title">書き出す解像度</div>
+      <div class="seg" id="seg-dpi"></div>
+      <div class="actions">
+        <button type="button" class="primary" id="exportBtn">PNGで書き出す</button>
+        <button type="button" class="ghost" id="resetBtn">サンプルに戻す</button>
+        <button type="button" class="ghost" id="clearBtn">すべて空にする</button>
+      </div>
+      <div id="result">
+        <p>保存されないときは、下の画像を右クリック（スマホは長押し）して保存してください。</p>
+        <img id="resultImg" alt="書き出した奥付の画像">
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <p class="support" id="support"></p>
+  <p>入力した内容はこのブラウザの中だけに保存され、どこにも送信されません。カラー原稿は350dpi、モノクロ原稿は600dpiが目安です。</p>
+  <p id="credit"></p>
+</footer>
+
+<script>
+// ===== 公開するときに書き換える設定 =====
+const SUPPORT_URL = "";      // 例: "https://ofuse.me/〇〇"（空なら表示しません）
+const SUPPORT_TEXT = "このツールが役に立ったら、応援してもらえると嬉しいです";
+const CREDIT_TEXT = "";      // 例: "制作：〇〇"（空なら表示しません）
+const NOTE_URL = "";         // 例: "https://note.com/〇〇/n/xxxx"（使い方の記事。空なら表示しません）
+const NOTE_TEXT = "使い方・作った人について（note）";
+// ======================================
+
+const STORAGE_KEY = "okuduke-maker-v1";
+
+const NOTICES = [
+  { id: "n1", text: "本誌の無断転載・複製・アップロードを禁じます。" },
+  { id: "n2", text: "本誌は個人が制作した非公式の二次創作物です。原作者・出版社・公式とは一切関係ありません。" },
+  { id: "n3", text: "本誌の内容の一部または全部を、インターネット上に公開することを禁じます。" },
+  { id: "n5", text: "ネットオークションやフリマアプリへの出品など、本誌の転売行為はお断りします。" },
+  { id: "n10", text: "手放す際は、一般の方の目に触れないようにしたうえで可燃ゴミとして処分してください。" },
+  { id: "n4", text: "Do not repost, reproduce, or upload this book without permission." }
+];
+
+// 「成人向けの本」をオンにしたときにまとめて入る注意書き
+const ADULT_NOTICES = [
+  "本誌は成人向け（R18）作品です。18歳未満の方の閲覧・購入はお断りします。",
+  "This book contains adult content. Not for readers under 18."
+];
+
+const OPTIONS = {
+  style: [["none", "なし"], ["topbottom", "上下に罫線"], ["box", "囲み枠"], ["titleline", "タイトル下に線"]],
+  font: [["sans", "ゴシック"], ["serif", "明朝"], ["round", "丸ゴシック"]],
+  size: [["s", "小"], ["m", "中"], ["l", "大"]],
+  align: [["left", "左揃え"], ["center", "中央揃え"]],
+  color: [["#000000", "黒"], ["#ffffff", "白"], ["custom", "そのほか"]],
+  dpi: [["350", "350dpi"], ["600", "600dpi"]],
+  book: [["A4", "A4"], ["B5", "B5"], ["A5", "A5"], ["B6", "B6"], ["A6", "文庫（A6）"], ["shinsho", "新書"], ["custom", "幅をmmで指定"]]
+};
+
+// 本のサイズごとの奥付の幅（mm）。版面に収まりやすい、ページ幅の約55%
+const BOOK_WIDTH = { A4: 115, B5: 100, A5: 80, B6: 70, A6: 58, shinsho: 56 };
+const BOOK_NAME = { A4: "A4", B5: "B5", A5: "A5", B6: "B6", A6: "文庫（A6）", shinsho: "新書" };
+function effWidth() { return state.book === "custom" ? state.width : (BOOK_WIDTH[state.book] || 80); }
+function syncWidth() {
+  const custom = state.book === "custom";
+  $("widthWrap").style.display = custom ? "flex" : "none";
+  $("widthHint").textContent = custom ? "" : BOOK_NAME[state.book] + "の本にちょうどいい幅（約" + BOOK_WIDTH[state.book] + "mm）で書き出します。";
+}
+
+const FONT_FAMILY = { sans: '"Noto Sans JP"', serif: '"Noto Serif JP"', round: '"Zen Maru Gothic"' };
+const SIZE_SCALE = { s: 0.85, m: 1, l: 1.2 };
+
+function sampleState() {
+  return {
+    title: "サンプル本のタイトル",
+    subtitle: "",
+    editions: [{ date: "2026年12月30日", label: "", note: "" }],
+    info: [
+      { label: "発行", value: "サークル名" },
+      { label: "発行者", value: "ペンネーム" },
+      { label: "印刷所", value: "〇〇印刷株式会社" }
+    ],
+    contacts: [
+      { label: "X", value: "@your_account" },
+      { label: "Web", value: "https://example.com" }
+    ],
+    notices: { n1: true, n2: true, n3: false, n4: false },
+    adult: false,
+    customNotice: "",
+    style: "topbottom", font: "sans", size: "m", align: "left",
+    color: "#000000", customColor: "#2f5d8a", width: 80, book: "A5", dpi: "350"
+  };
+}
+
+function emptyState() {
+  const s = sampleState();
+  s.title = ""; s.subtitle = "";
+  s.editions = [{ date: "", label: "", note: "" }];
+  s.info = [{ label: "発行", value: "" }, { label: "発行者", value: "" }, { label: "印刷所", value: "" }];
+  s.contacts = [{ label: "X", value: "" }];
+  s.notices = { n1: true, n2: false, n3: false, n4: false };
+  return s;
+}
+
+let state = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return Object.assign(sampleState(), JSON.parse(raw));
+  } catch (e) {}
+  return sampleState();
+}
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+// ---------- フォーム ----------
+const $ = id => document.getElementById(id);
+
+function bindText(id) {
+  const el = $(id);
+  el.value = state[id];
+  el.addEventListener("input", () => { state[id] = el.value; changed(); });
+}
+
+function renderRows(key) {
+  const box = $(key);
+  box.innerHTML = "";
+  state[key].forEach((item, i) => {
+    const row = document.createElement("div");
+    if (key === "editions") {
+      const first = i === 0;
+      row.className = first ? "row ed first" : "row ed";
+      row.innerHTML =
+        '<input type="text" class="ed-date" aria-label="発行日" placeholder="2026年12月30日">' +
+        (first ? '' : '<input type="text" class="ed-label" aria-label="版" placeholder="第2版発行">') +
+        '<input type="text" class="ed-note" aria-label="イベント名" placeholder="イベント名（任意）">' +
+        '<button type="button" class="icon-btn" aria-label="この行を削除">×</button>';
+      const d = row.querySelector(".ed-date"), l = row.querySelector(".ed-label"), n = row.querySelector(".ed-note");
+      d.value = item.date; n.value = item.note;
+      d.addEventListener("input", () => { item.date = d.value; changed(); });
+      n.addEventListener("input", () => { item.note = n.value; changed(); });
+      if (l) { l.value = item.label; l.addEventListener("input", () => { item.label = l.value; changed(); }); }
+    } else {
+      row.className = "row kv";
+      row.innerHTML =
+        '<input type="text" aria-label="項目名" placeholder="項目名">' +
+        '<input type="text" aria-label="内容" placeholder="内容">' +
+        '<button type="button" class="icon-btn" aria-label="この行を削除">×</button>';
+      const [l, v] = row.querySelectorAll("input");
+      l.value = item.label; v.value = item.value;
+      l.addEventListener("input", () => { item.label = l.value; changed(); });
+      v.addEventListener("input", () => { item.value = v.value; changed(); });
+    }
+    row.querySelector("button").addEventListener("click", () => {
+      state[key].splice(i, 1); renderRows(key); changed();
+    });
+    box.appendChild(row);
+  });
+}
+
+document.querySelectorAll("[data-add]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const key = btn.dataset.add;
+    state[key].push(key === "editions" ? { date: "", label: "第" + (state.editions.length + 1) + "版発行", note: "" } : { label: "", value: "" });
+    renderRows(key); changed();
+    const inputs = $(key).querySelectorAll("input");
+    const rows = $(key).children;
+    const lastRow = rows[rows.length - 1];
+    if (lastRow) lastRow.querySelector("input").focus();
+  });
+});
+
+function renderNotices() {
+  const box = $("notices");
+  box.innerHTML = "";
+  NOTICES.forEach(n => {
+    const lab = document.createElement("label");
+    lab.className = "check";
+    lab.innerHTML = '<input type="checkbox"><span></span>';
+    lab.querySelector("span").textContent = n.text;
+    const cb = lab.querySelector("input");
+    cb.checked = !!state.notices[n.id];
+    cb.addEventListener("change", () => { state.notices[n.id] = cb.checked; changed(); });
+    box.appendChild(lab);
+  });
+}
+
+function renderSeg(key) {
+  const box = $("seg-" + key);
+  box.innerHTML = "";
+  OPTIONS[key].forEach(([val, text], i) => {
+    const id = "opt-" + key + "-" + i;
+    const input = document.createElement("input");
+    input.type = "radio"; input.name = key; input.id = id; input.value = val;
+    input.checked = String(state[key]) === val;
+    const lab = document.createElement("label");
+    lab.htmlFor = id; lab.textContent = text;
+    input.addEventListener("change", () => { state[key] = val; changed(); });
+    box.appendChild(input); box.appendChild(lab);
+  });
+}
+
+let subtitleOpen = false;
+function syncSubtitle() {
+  const show = subtitleOpen || !!state.subtitle;
+  $("subtitleWrap").style.display = show ? "block" : "none";
+  $("subtitleAdd").style.display = show ? "none" : "inline-block";
+}
+$("subtitleAdd").addEventListener("click", () => { subtitleOpen = true; syncSubtitle(); $("subtitle").focus(); });
+$("subtitleRemove").addEventListener("click", () => {
+  state.subtitle = ""; $("subtitle").value = ""; subtitleOpen = false; syncSubtitle(); changed();
+});
+
+function initForm() {
+  ["title", "subtitle", "customNotice"].forEach(bindText);
+  syncSubtitle();
+  ["editions", "info", "contacts"].forEach(renderRows);
+  renderNotices();
+  const ad = $("adult");
+  ad.checked = !!state.adult;
+  ad.addEventListener("change", () => { state.adult = ad.checked; changed(); });
+  Object.keys(OPTIONS).forEach(renderSeg);
+  const cc = $("customColor");
+  cc.value = state.customColor;
+  cc.addEventListener("input", () => { state.customColor = cc.value; changed(); });
+  syncWidth();
+  const w = $("width");
+  w.value = state.width;
+  w.addEventListener("input", () => {
+    const v = parseFloat(w.value);
+    if (v >= 30 && v <= 300) { state.width = v; changed(); }
+  });
+}
+
+// ---------- 描画 ----------
+function inkColor() { return state.color === "custom" ? state.customColor : state.color; }
+
+function allText() {
+  return [state.title, state.subtitle, state.customNotice]
+    .concat(state.editions.map(e => e.date + e.label + e.note))
+    .concat(state.info.map(r => r.label + r.value))
+    .concat(state.contacts.map(r => r.label + r.value))
+    .concat(NOTICES.map(n => n.text)).concat(ADULT_NOTICES).join("") + "（）　0123456789";
+}
+
+async function ensureFonts() {
+  if (!document.fonts || !document.fonts.load) return;
+  const fam = FONT_FAMILY[state.font];
+  const text = allText();
+  try {
+    await Promise.all([
+      document.fonts.load("400 24px " + fam, text),
+      document.fonts.load("700 24px " + fam, text)
+    ]);
+  } catch (e) {}
+}
+
+const NO_START = "、。，．）」』】〕〉》）ー…・！？!?,.)：:；;";
+
+function wrap(ctx, text, maxW) {
+  const out = [];
+  String(text).split("\n").forEach(para => {
+    let line = "";
+    for (const ch of Array.from(para)) {
+      const t = line + ch;
+      if (line && ctx.measureText(t).width > maxW) {
+        if (NO_START.includes(ch)) { out.push(t); line = ""; }
+        else { out.push(line); line = ch; }
+      } else line = t;
+    }
+    out.push(line);
+  });
+  return out;
+}
+
+// k = 1mmあたりのピクセル数
+function build(ctx, k) {
+  const fam = FONT_FAMILY[state.font] + ', "Noto Sans JP", sans-serif';
+  const sc = SIZE_SCALE[state.size];
+  const pt = v => v * 0.3528 * k * sc;
+  const mm = v => v * k;
+  const W = mm(effWidth());
+  const style = state.style;
+  const padX = style === "box" ? mm(4) : mm(1);
+  const padY = style === "box" ? mm(4) : style === "topbottom" ? mm(3) : mm(1);
+  const innerW = W - padX * 2;
+  const center = state.align === "center";
+  const ops = [];
+  let y = padY;
+
+  function font(size, bold) { return (bold ? "700 " : "400 ") + size + "px " + fam; }
+  function textBlock(str, size, bold, lh, maxW, x0, alignCenter) {
+    ctx.font = font(size, bold);
+    wrap(ctx, str, maxW).forEach(line => {
+      const x = alignCenter ? x0 + maxW / 2 : x0;
+      ops.push({ t: "text", s: line, f: font(size, bold), x, y, a: alignCenter ? "center" : "left" });
+      y += size * lh;
+    });
+  }
+
+  // タイトル
+  const hasTitle = state.title.trim() || state.subtitle.trim();
+  if (state.title.trim()) textBlock(state.title, pt(12), true, 1.45, innerW, padX, center);
+  if (state.subtitle.trim()) { y += mm(0.3); textBlock(state.subtitle, pt(8), false, 1.5, innerW, padX, center); }
+  if (hasTitle) {
+    if (style === "titleline") { y += mm(1.2); ops.push({ t: "line", x1: padX, x2: W - padX, y }); y += mm(2.5); }
+    else y += mm(2.5);
+  }
+
+  // 版
+  const eds = state.editions.map((e, i) => ({ date: e.date, label: i === 0 ? "" : e.label, note: e.note }))
+    .filter(e => (e.date + e.label + e.note).trim());
+  eds.forEach(e => {
+    let s = [e.date.trim(), e.label.trim()].filter(Boolean).join("　");
+    if (e.note.trim()) s += "（" + e.note.trim() + "）";
+    textBlock(s, pt(7), false, 1.6, innerW, padX, center);
+  });
+  if (eds.length) y += mm(2);
+
+  // 発行・印刷・連絡先
+  const groups = [state.info, state.contacts].map(g => g.filter(r => (r.label + r.value).trim()));
+  const bodySize = pt(7);
+  ctx.font = font(bodySize, false);
+  const allRows = groups[0].concat(groups[1]);
+  const gap = mm(3);
+  let labelW = 0;
+  allRows.forEach(r => { labelW = Math.max(labelW, ctx.measureText(r.label).width); });
+  const labelCol = labelW ? labelW + gap : 0;
+  const valueMax = innerW - labelCol;
+  let blockX = padX;
+  if (center && allRows.length) {
+    let vMax = 0;
+    allRows.forEach(r => r.value.split("\n").forEach(l => { vMax = Math.max(vMax, ctx.measureText(l).width); }));
+    const blockW = Math.min(innerW, labelCol + vMax);
+    blockX = (W - blockW) / 2;
+  }
+  groups.forEach((g, gi) => {
+    if (gi === 1 && groups[0].length && g.length) y += mm(1.2);
+    g.forEach(r => {
+      const lines = wrap(ctx, r.value, Math.max(valueMax, mm(10)));
+      ops.push({ t: "text", s: r.label, f: font(bodySize, false), x: blockX, y, a: "left" });
+      lines.forEach(line => {
+        ops.push({ t: "text", s: line, f: font(bodySize, false), x: blockX + labelCol, y, a: "left" });
+        y += bodySize * 1.6;
+      });
+    });
+  });
+
+  // 注意書き
+  const notes = (state.adult ? ADULT_NOTICES.slice() : []).concat(NOTICES.filter(n => state.notices[n.id]).map(n => n.text));
+  if (state.customNotice.trim()) notes.push(state.customNotice.trim());
+  if (notes.length) {
+    if (allRows.length || eds.length || hasTitle) y += mm(2.2);
+    notes.forEach(n => textBlock(n, pt(5.5), false, 1.6, innerW, padX, center));
+  }
+
+  // 最後の行の余白を詰める
+  y -= (ops.length ? pt(5.5) * 0.25 : 0);
+  const H = Math.max(Math.ceil(y + padY), Math.ceil(mm(10)));
+  return { W: Math.ceil(W), H, ops, k };
+}
+
+function paint(ctx, layout) {
+  const { W, H, ops, k } = layout;
+  ctx.clearRect(0, 0, W, H);
+  const ink = inkColor();
+  ctx.fillStyle = ink; ctx.strokeStyle = ink;
+  ctx.textBaseline = "top";
+  const lw = Math.max(1, 0.25 * k);
+  ctx.lineWidth = lw;
+  if (state.style === "topbottom") {
+    ctx.fillRect(0, 0.3 * k, W, lw);
+    ctx.fillRect(0, H - 0.3 * k - lw, W, lw);
+  } else if (state.style === "box") {
+    ctx.strokeRect(lw / 2 + 0.2 * k, lw / 2 + 0.2 * k, W - lw - 0.4 * k, H - lw - 0.4 * k);
+  }
+  ops.forEach(o => {
+    if (o.t === "text") { ctx.font = o.f; ctx.textAlign = o.a; ctx.fillText(o.s, o.x, o.y); }
+    else if (o.t === "line") { ctx.fillRect(o.x1, o.y - lw / 2, o.x2 - o.x1, lw); }
+  });
+}
+
+function render(canvas, k) {
+  const ctx = canvas.getContext("2d");
+  const layout = build(ctx, k);
+  canvas.width = layout.W; canvas.height = layout.H;
+  paint(ctx, layout);
+  return layout;
+}
+
+let pending = 0;
+async function drawPreview() {
+  const ticket = ++pending;
+  await ensureFonts();
+  if (ticket !== pending) return;
+  const canvas = $("preview");
+  const stage = $("stage");
+  const avail = Math.max(200, stage.clientWidth - 32);
+  const wmm = effWidth();
+  const k = (avail * (window.devicePixelRatio || 1)) / wmm;
+  render(canvas, k);
+  canvas.style.maxWidth = avail + "px";
+  const ink = inkColor().toLowerCase();
+  stage.classList.toggle("dark", ink === "#ffffff" || ink === "#fff");
+  const hmm = canvas.height / k;
+  const dpi = parseInt(state.dpi, 10);
+  $("meta").textContent = "仕上がりサイズ：約 " + wmm + " × " + hmm.toFixed(1) + " mm（" +
+    Math.round(wmm / 25.4 * dpi) + " × " + Math.round(hmm / 25.4 * dpi) + " px／" + dpi + "dpi）";
+}
+
+let timer = null;
+function changed() {
+  syncWidth();
+  saveState();
+  clearTimeout(timer);
+  timer = setTimeout(drawPreview, 120);
+  $("result").style.display = "none";
+}
+
+// ---------- 書き出し（PNGに解像度情報を入れる） ----------
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let i = 0; i < 8; i++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function withDpi(buf, dpi) {
+  const src = new Uint8Array(buf);
+  const ppm = Math.round(dpi / 0.0254);
+  const chunk = new Uint8Array(21);
+  const dv = new DataView(chunk.buffer);
+  dv.setUint32(0, 9);
+  chunk.set([0x70, 0x48, 0x59, 0x73], 4); // "pHYs"
+  dv.setUint32(8, ppm); dv.setUint32(12, ppm); chunk[16] = 1;
+  dv.setUint32(17, crc32(chunk.subarray(4, 17)));
+  const pos = 33; // PNG署名(8) + IHDR(25)
+  const out = new Uint8Array(src.length + chunk.length);
+  out.set(src.subarray(0, pos), 0);
+  out.set(chunk, pos);
+  out.set(src.subarray(pos), pos + chunk.length);
+  return out;
+}
+
+function safeName(s) { return (s || "okuduke").replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 40); }
+
+let lastUrl = null;
+async function exportPng() {
+  const btn = $("exportBtn");
+  btn.disabled = true; btn.textContent = "書き出し中…";
+  try {
+    await ensureFonts();
+    const dpi = parseInt(state.dpi, 10);
+    const canvas = document.createElement("canvas");
+    render(canvas, dpi / 25.4);
+    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+    const fixed = new Blob([withDpi(await blob.arrayBuffer(), dpi)], { type: "image/png" });
+    if (lastUrl) URL.revokeObjectURL(lastUrl);
+    lastUrl = URL.createObjectURL(fixed);
+    const name = "奥付_" + safeName(state.title) + "_" + dpi + "dpi.png";
+    const a = document.createElement("a");
+    a.href = lastUrl; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    $("resultImg").src = lastUrl;
+    $("result").style.display = "block";
+  } catch (e) {
+    $("result").style.display = "block";
+    $("result").querySelector("p").textContent = "書き出しに失敗しました。ページを再読み込みしてもう一度試してください。";
+  } finally {
+    btn.disabled = false; btn.textContent = "PNGで書き出す";
+  }
+}
+
+// ---------- サンプル文字は、欄をクリック（タップ）したときに消す ----------
+const SAMPLE_VALUES = new Set(["サンプル本のタイトル", "2026年12月30日", "サークル名", "ペンネーム", "〇〇印刷株式会社", "@your_account", "https://example.com"]);
+document.addEventListener("focusin", e => {
+  const el = e.target;
+  if (el.tagName === "INPUT" && el.type === "text" && SAMPLE_VALUES.has(el.value)) {
+    el.value = "";
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+});
+
+// ---------- 起動 ----------
+function resetTo(s) {
+  state = s; saveState();
+  initFormValues();
+  drawPreview();
+  $("result").style.display = "none";
+}
+function initFormValues() {
+  ["title", "subtitle", "customNotice"].forEach(id => { $(id).value = state[id]; });
+  subtitleOpen = false; syncSubtitle();
+  ["editions", "info", "contacts"].forEach(renderRows);
+  renderNotices();
+  $("adult").checked = !!state.adult;
+  Object.keys(OPTIONS).forEach(renderSeg);
+  $("customColor").value = state.customColor;
+  $("width").value = state.width;
+  syncWidth();
+}
+
+$("exportBtn").addEventListener("click", exportPng);
+$("resetBtn").addEventListener("click", () => resetTo(sampleState()));
+$("clearBtn").addEventListener("click", () => resetTo(emptyState()));
+window.addEventListener("resize", () => { clearTimeout(timer); timer = setTimeout(drawPreview, 150); });
+
+if (SUPPORT_URL) {
+  const p = $("support");
+  const a = document.createElement("a");
+  a.href = SUPPORT_URL; a.textContent = SUPPORT_TEXT; a.target = "_blank"; a.rel = "noopener";
+  p.appendChild(a); p.style.display = "block";
+}
+if (CREDIT_TEXT || NOTE_URL) {
+  const cr = $("credit");
+  if (CREDIT_TEXT) cr.appendChild(document.createTextNode(CREDIT_TEXT + (NOTE_URL ? "　" : "")));
+  if (NOTE_URL) {
+    const a = document.createElement("a");
+    a.href = NOTE_URL; a.textContent = NOTE_TEXT; a.target = "_blank"; a.rel = "noopener";
+    cr.appendChild(a);
+  }
+}
+
+initForm();
+drawPreview();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawPreview);
+</script>
+</body>
+</html>
