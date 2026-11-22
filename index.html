@@ -240,7 +240,8 @@ function sampleState() {
     adult: false,
     customNotice: "",
     style: "topbottom", font: "sans", size: "m", align: "left",
-    color: "#000000", customColor: "#2f5d8a", width: 80, book: "A5", dpi: "350"
+    color: "#000000", customColor: "#2f5d8a", width: 80, book: "A5", dpi: "350",
+    mailAdded: true
   };
 }
 
@@ -259,7 +260,16 @@ let state = loadState();
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return Object.assign(sampleState(), JSON.parse(raw));
+    if (raw) {
+      const saved = JSON.parse(raw);
+      // 以前のバージョンで保存した人にも、連絡先の一番上に Mail の行を足す（1回だけ）
+      if (!saved.mailAdded) {
+        const c = saved.contacts;
+        if (Array.isArray(c) && !c.some(r => /mail|メール/i.test((r && r.label) || ""))) c.unshift({ label: "Mail", value: "" });
+        saved.mailAdded = true;
+      }
+      return Object.assign(sampleState(), saved);
+    }
   } catch (e) {}
   return sampleState();
 }
