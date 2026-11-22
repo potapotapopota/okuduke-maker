@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src blob: data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>奥付メーカー</title>
 <meta name="description" content="同人誌の奥付を、入力するだけで透明背景のPNG画像にできるツールです。">
@@ -231,6 +232,7 @@ function sampleState() {
       { label: "印刷所", value: "〇〇印刷株式会社" }
     ],
     contacts: [
+      { label: "Mail", value: "mail@example.com" },
       { label: "X", value: "@your_account" },
       { label: "Web", value: "https://example.com" }
     ],
@@ -247,7 +249,7 @@ function emptyState() {
   s.title = ""; s.subtitle = "";
   s.editions = [{ date: "", label: "", note: "" }];
   s.info = [{ label: "発行", value: "" }, { label: "発行者", value: "" }, { label: "印刷所", value: "" }];
-  s.contacts = [{ label: "X", value: "" }];
+  s.contacts = [{ label: "Mail", value: "" }, { label: "X", value: "" }];
   s.notices = { n1: true, n2: false, n3: false, n4: false };
   return s;
 }
@@ -463,8 +465,7 @@ function build(ctx, k) {
   const eds = state.editions.map((e, i) => ({ date: e.date, label: i === 0 ? "" : e.label, note: e.note }))
     .filter(e => (e.date + e.label + e.note).trim());
   eds.forEach(e => {
-    let s = [e.date.trim(), e.label.trim()].filter(Boolean).join("　");
-    if (e.note.trim()) s += "（" + e.note.trim() + "）";
+    const s = [e.date.trim(), e.label.trim(), e.note.trim()].filter(Boolean).join("　");
     textBlock(s, pt(7), false, 1.6, innerW, padX, center);
   });
   if (eds.length) y += mm(2);
@@ -627,7 +628,7 @@ async function exportPng() {
 }
 
 // ---------- サンプル文字は、欄をクリック（タップ）したときに消す ----------
-const SAMPLE_VALUES = new Set(["サンプル本のタイトル", "2026年12月30日", "サークル名", "ペンネーム", "〇〇印刷株式会社", "@your_account", "https://example.com"]);
+const SAMPLE_VALUES = new Set(["サンプル本のタイトル", "2026年12月30日", "サークル名", "ペンネーム", "〇〇印刷株式会社", "@your_account", "mail@example.com", "https://example.com"]);
 document.addEventListener("focusin", e => {
   const el = e.target;
   if (el.tagName === "INPUT" && el.type === "text" && SAMPLE_VALUES.has(el.value)) {
